@@ -43,8 +43,18 @@ typedef struct	s_mlx
 	t_img		img;
 }				t_mlx;
 
+typedef struct  s_position
+{
+    float px;
+    float py;
+    float pa; //player angle
+    float deltaX; //
+    float deltaY; //
+}               t_position;
+
 t_img   g_img;
 t_mlx   g_mlx;
+t_position   g_position;
 t_resolution    g_reso;
 
 int	close_program(void *param);

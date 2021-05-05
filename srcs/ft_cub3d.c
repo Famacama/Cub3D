@@ -1,26 +1,45 @@
 #include <stdio.h>
+#include <math.h>
 #include "../include/milx.h"
 #include "../include/parse.h"
+
+#define X_EVENT_KEY_PRESS        2
+#define X_EVENT_KEY_EXIT        17 //Exit program key code
+
+#define KEY_ESC            53
+
+//Mac key code example
+//All the key code example other than below is described on the site linked in READEME.md
+
+# define KEY_Q            12
+# define KEY_W            13
+# define KEY_E            14
+# define KEY_R            15
+# define KEY_A            0
+# define KEY_S            1
+# define KEY_D            2
 
 #define screenWidth 640
 #define screenHeight 480
 #define mapWidth 24
 #define mapHeight 24
+#define tile_size 32
+#define TO_COORD(X, Y) ((int)floor(Y) * g_dotcube.reso_w + (int)floor(X))
+#define PI 3.1415926535
+
 
 void init_window(void)
 {
     g_mlx.mlx_ptr = mlx_init();
     g_mlx.win = mlx_new_window(g_mlx.mlx_ptr, g_dotcube.reso_w, g_dotcube.reso_h, "fama");
-    g_mlx.img.img_ptr = mlx_new_image(g_mlx.mlx_ptr, g_dotcube.reso_w, g_dotcube.reso_h);
+    // g_mlx.img.img_ptr = mlx_new_image(g_mlx.mlx_ptr, g_dotcube.reso_w, g_dotcube.reso_h);
 }
 
-void	draw_rectangle(int x, int y)
+void	draw_wall(int x, int y)
 {
 	int i;
 	int j;
-	int tile_size;
 
-	tile_size = 32;
 	x *= tile_size;
 	y *= tile_size;
 	i = 0;
@@ -43,30 +62,190 @@ void	draw_rectangle(int x, int y)
 	}
 }
 
-void	draw_rectangles(void)
+void	draw_square(int x, int y)
 {
-	int		i;
-	int		j;
+	int i;
+	int j;
 
+	x *= tile_size;
+	y *= tile_size;
 	i = 0;
-	while (i < g_rows)                                                   
+	// printf("test f\n");
+	while (i < tile_size)
 	{
+		// printf("test g\n");
 		j = 0;
-		while (j < g_cols)
+		while (j < tile_size)
 		{
-			if (g_tab[i][j] == 1)
-				draw_rectangle(j, i);
+			g_mlx.img.data[(y + i) * g_dotcube.reso_w + (x + j)] = 0x000000;
 			j++;
 		}
 		i++;
 	}
 }
 
+void	draw_player(float x, float y)
+{
+	int i;
+	int j;
+
+	x *= tile_size - g_position.px;
+	y *= tile_size - g_position.py;
+	i = 0;
+
+	printf("x == %f and y == %f\n", x, y);
+	// printf("test f\n");
+	while (i < 5)
+	{
+		// printf("test g\n");
+		j = 0;
+		while (j < 5)
+		{
+			g_mlx.img.data[(int)(y + i) * g_dotcube.reso_w + (int)(x + j)] = 0xFFFF00;
+			j++;
+		}
+		i++;
+	}
+}
+
+void	draw_view(float x, float y)
+{
+	int i;
+	int j;
+
+	x *= tile_size - g_position.px - g_position.deltaX;
+	y *= tile_size - g_position.py - g_position.deltaY;
+	i = 0;
+	// printf("test f\n");
+	while (i < 3)
+	{
+		// printf("test g\n");
+		j = 0;
+		while (j < 3)
+		{
+			g_mlx.img.data[(int)(y + i) * g_dotcube.reso_w + (int)(x + j)] = 0xFFFFF0;
+			j++;
+		}
+		i++;
+	}
+}
+
+void	draw_rectangles(void)
+{
+	int		i;
+	int		j;
+
+	float		a;
+	float		b;
+	i = 0;
+	while (i < g_rows)                                                   
+	{
+		j = 0;
+		while (j < g_cols)
+		{
+			if (g_tab[i][j] == '1')
+				draw_wall(j, i);
+			if (g_tab[i][j] == '0')
+				draw_square(j, i);
+			if (g_tab[i][j] == 'N')
+			{
+				a = i;
+				b = j;
+				draw_square(j, i);
+			}
+				
+			j++;
+		}
+		i++;
+	}
+	draw_player(b, a);
+	draw_view(b, a);
+}
+
+void draw_line(double x1, double y1, double x2, double y2)
+{
+	double    deltaX;
+    double    deltaY;
+    double    step;
+
+	deltaX = x2 - x1;
+    deltaY = y2 - y1;
+	step = (fabs(deltaX) > fabs(deltaY)) ? fabs(deltaX) : fabs(deltaY);
+    deltaX /= step;
+    deltaY /= step;
+    while (fabs(x2 - x1) > 0.01 || fabs(y2 - y1) > 0.01)
+    {
+        g_mlx.img.data[TO_COORD(x1, y1)] = 0xb3b3b3;
+        x1 += deltaX;
+        y1 += deltaY;
+    }
+}
+
+void draw_lines(void)
+{
+	int        i;
+    int        j;
+
+    i = 0;
+    while(i < g_cols)
+	{
+		draw_line(i * tile_size, 0, i * tile_size, g_dotcube.reso_h);
+		i++;
+	}
+	draw_line(g_cols * tile_size - 1, 0, g_cols * tile_size - 1, g_dotcube.reso_h);
+    j = 0;
+	while (j < g_rows)
+    {
+        draw_line(0, j * tile_size, g_dotcube.reso_w, j * tile_size);
+        j++;
+    }
+    draw_line(0, g_rows * tile_size - 1, g_dotcube.reso_w, g_rows * tile_size - 1);
+}
+
 int main_loop(void)
 {
     draw_rectangles();
+	draw_lines();
     mlx_put_image_to_window(g_mlx.mlx_ptr, g_mlx.win, g_mlx.img.img_ptr, 0, 0);
     return (0);
+}
+
+int key_check(int key_value)
+{
+	if (key_value == KEY_A)
+	{
+		// g_position.px++;
+		g_position.pa -= 0.1;
+		if (g_position.pa < 0)
+			g_position.pa += 2 * PI;
+		g_position.deltaX = cos(g_position.pa);
+		g_position.deltaY = sin(g_position.pa);
+	}
+	else if (key_value == KEY_D)
+	{
+		// g_position.px--;
+		g_position.pa += 0.1;
+		if (g_position.pa > 0)
+			g_position.pa -= 2 * PI;
+		g_position.deltaX = cos(g_position.pa);
+		g_position.deltaY = sin(g_position.pa);
+	}
+	else if (key_value == KEY_W)
+	{
+		// g_position.py++;
+		g_position.px += g_position.deltaX;
+		g_position.py += g_position.deltaY;
+	}
+	else if (key_value == KEY_S)
+	{
+		// g_position.py--;
+		g_position.px -= g_position.deltaX;
+		g_position.py -= g_position.deltaY;
+	}
+	else if (key_value == KEY_ESC)
+		exit(0);
+	printf("px = %f and py = %f\n", g_position.px, g_position.py);
+	return (0);
 }
 
 int main(int argc, char **argv)
@@ -81,46 +260,83 @@ int main(int argc, char **argv)
 			ft_putstr_fd("too many aruments", 0);
 	}
     parsing(argc, argv);
-
 	g_mlx.mlx_ptr = mlx_init();
     g_mlx.win = mlx_new_window(g_mlx.mlx_ptr, g_dotcube.reso_w, g_dotcube.reso_h, "fama");
     g_mlx.img.img_ptr = mlx_new_image(g_mlx.mlx_ptr, g_dotcube.reso_w, g_dotcube.reso_h);
 	g_mlx.img.data = (int *)mlx_get_data_addr(g_mlx.img.img_ptr, &g_mlx.img.bpp, &g_mlx.img.size_l, &g_mlx.img.endian);
 	
-	int i;
-	int j;
-	int rows;
-	int cols;
-	int tile_size;
+	mlx_hook(g_mlx.win, X_EVENT_KEY_PRESS, 0, &key_check, &g_mlx);
+    mlx_loop_hook(g_mlx.mlx_ptr, &main_loop, &g_mlx);
+	mlx_loop(g_mlx.mlx_ptr);	
+}
 
-	tile_size = 32;
-	rows = g_dotcube.reso_h / tile_size;
-	cols = g_dotcube.reso_w / tile_size;
-	printf("cols %d and rows %d\n", cols, rows);
-	printf("test a\n");
-	i = 0;
-	while (i < rows)
-	{
-		// printf("test b\n");
-		j = 0;
-		while (j < cols)
-		{
 
-			// printf("test c\n");
-			// printf("g_cols = %d\n", g_cols);
-			// printf("i = %d et j %d\n", i, j);
-			// printf("g_tab de j = %c\n", g_tab[i][j]);
-			if (g_tab[i][j] == '1')
-			{
-				// printf("test d\n");
-				// printf("g_tab de j = %c\n", g_tab[i][j]);
-				draw_rectangle(j, i);
-				// printf("test e\n");
-			}
-			j++;
-		}
-		i++;
-	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// int i;
+	// int j;
+	// int rows;
+	// int cols;
+	// int tile_size;
+
+	// tile_size = 32;
+	// rows = g_dotcube.reso_h / tile_size;
+	// cols = g_dotcube.reso_w / tile_size;
+	// printf("cols %d and rows %d\n", cols, rows);
+	// printf("test a\n");
+	// i = 0;
+	// while (i < rows)
+	// {
+	// 	// printf("test b\n");
+	// 	j = 0;
+	// 	while (j < cols)
+	// 	{
+
+	// 		// printf("test c\n");
+	// 		// printf("g_cols = %d\n", g_cols);
+	// 		// printf("i = %d et j %d\n", i, j);
+	// 		// printf("g_tab de j = %c\n", g_tab[i][j]);
+	// 		if (g_tab[i][j] == '1')
+	// 		{
+	// 			// printf("test d\n");
+	// 			// printf("g_tab de j = %c\n", g_tab[i][j]);
+	// 			draw_rectangles(j, i);
+	// 			//printf("test e\n");
+	// 		}
+	// 		j++;
+	// 	}
+	// 	i++;
+	// }
 
 	
 	
@@ -229,8 +445,8 @@ int main(int argc, char **argv)
 	// 	i++;
 	// }
 	
-	mlx_put_image_to_window(g_mlx.mlx_ptr, g_mlx.win, g_mlx.img.img_ptr, 0, 0);
-	mlx_loop(g_mlx.mlx_ptr);
+	// mlx_put_image_to_window(g_mlx.mlx_ptr, g_mlx.win, g_mlx.img.img_ptr, 0, 0);
+	// mlx_loop(g_mlx.mlx_ptr);
 	
 	
 	
@@ -248,11 +464,9 @@ int main(int argc, char **argv)
     // printf("ROWS %d -- COLS %d\n", g_rows, g_cols);
     //init_window();
     // main_loop(); 
-    //mlx_loop_hook(g_mlx.mlx_ptr, &main_loop, &g_mlx);
+    // mlx_loop_hook(g_mlx.mlx_ptr, &main_loop, &g_mlx);
 	// g_mlx.img.img_ptr = mlx_new_image(g_mlx.mlx_ptr, 480, 352);
 	// g_mlx.img.data = (int *)mlx_get_data_addr(g_mlx.img.img_ptr, &g_mlx.img.bpp, &g_mlx.img.size_l, &g_mlx.img.endian);
     // //parsing (int argc, char **argv)
     // mlx_put_image_to_window(g_mlx.mlx_ptr, g_mlx.win, g_mlx.img.img_ptr, 0, 0);
 	//mlx_loop(g_mlx.mlx_ptr);
-
-}
